@@ -3,7 +3,7 @@
 Thresholding single plane input images 
 
 Created on Mon Oct 03 15:36:40 2016
-@author: Fanny Georgi, based on Vardan Andriasyan's MorphoSphere segmentation
+@author: Fanny Georgi, based on Vardan Andriasyan's MorphoSphere segmentation, modified by Artur Yakimovich
 
 comment legend:
     ################## funtion of code below
@@ -19,32 +19,58 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+
+def processGrayImage(inputImage):
+    processedImage = (inputImage*255).astype('uint8')
+    processedImage = np.asarray(processedImage)
+    return processedImage
+    
+def processBinaryImage(inputImage, dilationDisk):
+    selem = skimage.morphology.disk(dilationDisk)
+    processedImage = cv2.dilate(inputImage,selem,iterations = 1)
+    processedImage = ndimage.binary_fill_holes(processedImage)
+    return processedImage
+    
+def thresholdImage(inputImage, gaussianSigma):
+    blur = cv2.GaussianBlur(inputImage,(gaussianSigma,gaussianSigma),0)
+    threshold, thresholdedImage = cv2.threshold(blur,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    return thresholdedImage
+    
+def detectCentralRegion(inputImage):
+    central
+    return centralRegion
+    
+def visualizeMatrix(inputImage):
+    if inputImage.dtype == 'bool':
+        inputImage = inputImage.astype(int)*255
+    
+    plt.imshow(inputImage, 'gray')
+    plt.set_cmap('gray')
+    plt.axis('on')
+    plt.show()
+
 ################## open single z plane from 16bit image
-nucleiImage = 'B01_405_z720.tif'
-inputImage = cv2.imread(nucleiImage, -1) #0 = grey, 1=RGB, -1=unchanged
+fileName = 'B01_405_z720.tif'
+inputImage = cv2.imread(fileName, -1) #0 = grey, 1=RGB, -1=unchanged
 
 ################## validate input visually
-plt.imshow(inputImage)
-plt.set_cmap('gray')
-plt.axis('on')
-plt.show()
-
+visualizeMatrix(inputImage)
 ################## convert to 8bit
-processedImage = (inputImage*255).astype('uint8')
-processedImage = np.asarray(processedImage)
 
 minSpheroidArea = 500
 dilationDisk = 100
 blockSize = 501
+gaussianSigma = 5
 
-thresholdedImage = cv2.adaptiveThreshold(processedImage,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,blockSize,0) #0 = threshold correction factor
-selem = skimage.morphology.disk(dilationDisk)
+imageHeight, imageWidth = inputImage.shape[:2]
 
-thresholdedImage = cv2.dilate(thresholdedImage,selem,iterations = 1)
-
-thresholdedImage = ndimage.binary_fill_holes(thresholdedImage)
+processedImage = processGrayImage(inputImage)
+thresholdedImage = thresholdImage(processedImage, gaussianSigma)
+processedBinaryImage = processBinaryImage(thresholdedImage, dilationDisk)
+visualizeMatrix(processedBinaryImage)
 
 labeledImage = measure.label(thresholdedImage)
+
 allProperties = measure.regionprops(labeledImage)
 
 
