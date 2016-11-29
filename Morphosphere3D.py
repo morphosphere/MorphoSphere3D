@@ -12,7 +12,7 @@ from skimage import measure,morphology
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-import ggplot as gg
+from ggplot import *
 #import multiproessing
 
 
@@ -42,8 +42,8 @@ def visualizeMatrix(inputImage):
     plt.show()
     
 def plotRDF(rdf):
-    print gg.ggplot(rdf, gg.aes('Intensity', 'r')) + \
-        gg.geom_line(rdf, colour='steelblue')
+    print ggplot(aes(x='r',y='Intensity'), data=rdf) + \
+        geom_point(color='steelblue')
 
 
 def label2mask(labeledImage,label):
@@ -77,7 +77,7 @@ def recenterCertesian(centroid,x,y,z=False):
         z=z-zCentroid
         return x, y, z
         
-def computeRDF(inputImage, centroid):  
+def computeRDF(inputImage, centroid, diameter, numberOfBins):  
     n,m = np.shape(inputImage)
     #preallocate matrix for r values
     rValues = np.zeros((n,m))
@@ -91,11 +91,21 @@ def computeRDF(inputImage, centroid):
         r, phi = vecCartesian2Polar(x, y)
         #r, phi = cartesian2Polar(x,y)
         rValues[iN,vecM] = r
-    values = np.unique(rValues)
+    # convert intensities and r matrices to 1D arrays for speed
+    rValuesVect = rValues.ravel()
+    inputImageVect = inputImage.ravel()
+    
+    if numberOfBins == 'max':
+        steps = 1
+        values = np.unique(rValuesVect)
+    else:
+        steps = np.floor((diameter/2)%numberOfBins)
+        values = np.arange(steps,diameter/2,steps)
+
     for iRvalue in values:
-        iIntensity = inputImage[np.where(rValues[rValues == iRvalue])].mean
+        iIntensity = np.mean(inputImageVect[np.where(rValuesVect[np.logical_and(rValuesVect >= iRvalue-steps,rValuesVect <= iRvalue)])])
         iRDF = pd.DataFrame({'r': [iRvalue], 'Intensity': [iIntensity]})
-        rdf.append(iRDF)
+        rdf = rdf.append(iRDF)
     return rdf.sort('r')
     
 def getCentralRegionAndProperties(inputImage, imageHeight, imageWidth):
@@ -155,6 +165,7 @@ dilationDisk = 100
 blockSize = 501
 gaussianSigma = 5
 numberOfProcesses = 4
+numberOfBins = 5 # numberOfBins = max for single pixel resolution
 
 imageHeight, imageWidth = inputImage.shape[:2]
 
@@ -173,44 +184,7 @@ maskedImage = np.multiply(inputImage,label2mask(labeledImage,label))
 #maskedImageRDF = pool.map(computeRDF, inputImage, centroid)
 #pool.close()
 #pool.join() 
-maskedImageRDF = computeRDF(inputImage, centroid)
+maskedImageRDF = computeRDF(inputImage, centroid, diameter, numberOfBins)
 
 visualizeMatrix(maskedImage)
 plotRDF(maskedImageRDF)
-
-################## Make output images square
-### actually not neccassary
-#outputImageSide = max(boundingBox[2]-boundingBox[0],boundingBox[3]-boundingBox[1])
-
-#minRow = round(centroid[0]-outputImageSide/2)
-#maxRow = round(centroid[0]+outputImageSide/2)
-#minCol = round(centroid[1]-outputImageSide/2)
-#maxCol = round(centroid[1]+outputImageSide/2)
-
-#croppedBWImage = spheroidBWImage[minRow:maxRow,minCol:maxCol]
-#croppedImage  =  inputImage[minRow:maxRow,minCol:maxCol]*croppedBWImage
-
-#spheroidAttributes = {'area': area ,'diameter': diameter,'circularity': circularity,'majorAxis': majorAxis,'minorAxis': minorAxis}
-
-#fullImage = inputImage*spheroidBWImage
-
-#plt.figure(1)
-#plt.imshow(spheroidBWImage)
-#plt.set_cmap('gray')
-#plt.axis('on')
-#plt.figure(2)
-#plt.imshow(fullImage)
-#plt.set_cmap('gray')
-#plt.axis('on')
-#plt.figure(3)
-#plt.imshow(croppedBWImage) ### not working, image sizes totally off, issue possibly in squaring part
-#plt.set_cmap('gray')
-#plt.axis('on')
-#plt.figure(4)
-#plt.imshow(croppedImage) ### not working, image sizes totally off
-#plt.set_cmap('gray')
-#plt.axis('on') 
-
-#plt.show()
-
-  
