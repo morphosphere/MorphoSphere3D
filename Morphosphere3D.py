@@ -34,6 +34,15 @@ def thresholdImage(inputImage, gaussianSigma):
     threshold, thresholdedImage = cv2.threshold(blur,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
     return thresholdedImage
 
+def visualizeMatrix(inputImage):
+    if inputImage.dtype == 'bool':
+        inputImage = inputImage.astype(int) * 255
+
+    plt.imshow(inputImage, 'gray')
+    plt.set_cmap('gray')
+    plt.axis('on')
+    plt.show()
+
 def visualizeSaveMatrix(inputImage, stepName):
     if inputImage.dtype == 'bool':
         inputImage = inputImage.astype(int)*255
@@ -46,6 +55,7 @@ def visualizeSaveMatrix(inputImage, stepName):
     im.save(stepName)
     
 def plotRDF(rdf, fileName):
+    ##### ##### ##### To do: plot in same graph, axis labels, x axis in um, y min 0
     if (re.search('405', fileName)):
         color = 'steelblue'
     if (re.search('488', fileName)):
@@ -109,14 +119,14 @@ def computeRDF(inputImage, centroid, diameter, numberOfBins):
     else:
         steps = np.floor((diameter/2)%numberOfBins)
         values = np.arange(steps,diameter/2,steps)
-
+    # calculate RDF as np. e.g. sum / mean / median / SD / .... optimal need to be evaluated
     for iRvalue in values:
         iIntensity = np.mean(inputImageVect[np.where(rValuesVect[np.logical_and(rValuesVect >= iRvalue-steps,rValuesVect <= iRvalue)])])
         iRDF = pd.DataFrame({'r': [iRvalue], 'Intensity': [iIntensity]})
         rdf = rdf.append(iRDF)
     return rdf.sort('r')
     
-def getCentralRegionAndProperties(inputImage, imageHeight, imageWidth):
+def getCentralRegionAndProperties(labeledImage, imageHeight, imageWidth):
     allProperties = measure.regionprops(labeledImage)
     ################## initialize empty arrays for area and distance filtering
     areas=np.empty(len(allProperties))
@@ -160,36 +170,46 @@ def getCentralRegionAndProperties(inputImage, imageHeight, imageWidth):
 
 
 ################## open single z plane from 16bit image
-fileName = 'B01_488_z720.tif'
-inputImage = cv2.imread(fileName, -1) #0 = grey, 1=RGB, -1=unchanged
+fileNameNuclei = 'B01_405_z720.tif'
+fileNameVirus = 'B01_488_z720.tif'
+inputImageNuclei = cv2.imread(fileNameNuclei, -1) #0 = grey, 1=RGB, -1=unchanged
+inputImageVirus = cv2.imread(fileNameVirus, -1) #0 = grey, 1=RGB, -1=unchanged
 
 ################## validate input visually
-stepNameInput = fileName[:-4] + '_inputImage' + '.tif'
-visualizeSaveMatrix(inputImage, stepNameInput)
+visualizeMatrix(inputImageNuclei)
+visualizeMatrix(inputImageVirus)
 
 ################## convert input image to 8bit
-processedImage = processGrayImage(inputImage)
+processedImageNuclei = processGrayImage(inputImageNuclei)
+processedImageVirus = processGrayImage(inputImageVirus)
 
 ################## smoothen and threshold input image
 gaussianSigma = 5
-thresholdedImage = thresholdImage(processedImage, gaussianSigma)
+thresholdedImageNuclei = thresholdImage(processedImageNuclei, gaussianSigma)
 
 ################## segment shperoid area
 minSpheroidArea = 500
 dilationDisk = 100
 blockSize = 501
 
-processedBinaryImage = processBinaryImage(thresholdedImage, dilationDisk)
-stepNameBinary = fileName[:-4] + '_processedBinaryImage' + '.tif'
-visualizeSaveMatrix(processedBinaryImage, stepNameBinary)
+processedBinaryImage = processBinaryImage(thresholdedImageNuclei, dilationDisk)
+stepNameBinaryNuclei = fileNameNuclei[:-4] + '_processedBinaryImageNuclei' + '.tif'
+visualizeSaveMatrix(processedBinaryImage, stepNameBinaryNuclei)
 
 ################## calculate center of spheroid
-imageHeight, imageWidth = inputImage.shape[:2]
-labeledImage = measure.label(thresholdedImage)
-getCentralRegionAndProperties(labeledImage, imageHeight, imageWidth)
-label, centroid, perimeter, area, diameter, majorAxis, minorAxis, circularity, boundingBox = getCentralRegionAndProperties(labeledImage, imageHeight, imageWidth)
+imageHeight, imageWidth = inputImageNuclei.shape[:2]
+labeledImageNuclei = measure.label(thresholdedImageNuclei)
+getCentralRegionAndProperties(labeledImageNuclei, imageHeight, imageWidth)
+label, centroid, perimeter, area, diameter, majorAxis, minorAxis, circularity, boundingBox = getCentralRegionAndProperties(labeledImageNuclei, imageHeight, imageWidth)
 
-maskedImage = np.multiply(inputImage,label2mask(labeledImage,label))
+labeled2mask = label2mask(labeledImageNuclei,label)
+maskedImageNuclei = np.multiply(inputImageNuclei, labeled2mask)
+maskedImageVirus = np.multiply(inputImageVirus,labeled2mask)
+
+stepNameMaskedNuclei = fileNameNuclei[:-4] + '_maskedImageNuclei' + '.tif'
+visualizeSaveMatrix(maskedImageNuclei, stepNameMaskedNuclei)
+stepNameMaskedVirus = fileNameVirus[:-4] + '_maskedImageVirus' + '.tif'
+visualizeSaveMatrix(maskedImageVirus, stepNameMaskedVirus)
 
 numberOfProcesses = 4
 #pool = multiprocessing.Pool(processes=numberOfProcesses)
@@ -199,10 +219,10 @@ numberOfProcesses = 4
 
 ################## calculate radial distribution function
 numberOfBins = 5 # numberOfBins = max for single pixel resolution
-maskedImageRDF = computeRDF(inputImage, centroid, diameter, numberOfBins)
+maskedImageNucleiRDF = computeRDF(inputImageNuclei, centroid, diameter, numberOfBins)
+maskedImageVirusRDF = computeRDF(inputImageVirus, centroid, diameter, numberOfBins)
 
-stepNameMasked = fileName[:-4] + '_maskedImage' + '.tif'
-visualizeSaveMatrix(maskedImage, stepNameMasked)
-plotRDF(maskedImageRDF, fileName)
+plotRDF(maskedImageNucleiRDF, fileNameNuclei)
+plotRDF(maskedImageVirusRDF, fileNameVirus)
 
-print 'Ran MorphoSphere3D for ' + fileName[:-4]
+print 'Ran MorphoSphere3D for ' + fileNameNuclei[:-4]
