@@ -13,6 +13,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from ggplot import *
+from PIL import Image
+import re
 #import multiproessing
 
 
@@ -31,8 +33,8 @@ def thresholdImage(inputImage, gaussianSigma):
     blur = cv2.GaussianBlur(inputImage,(gaussianSigma,gaussianSigma),0)
     threshold, thresholdedImage = cv2.threshold(blur,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
     return thresholdedImage
-    
-def visualizeMatrix(inputImage):
+
+def visualizeSaveMatrix(inputImage, stepName):
     if inputImage.dtype == 'bool':
         inputImage = inputImage.astype(int)*255
     
@@ -40,11 +42,18 @@ def visualizeMatrix(inputImage):
     plt.set_cmap('gray')
     plt.axis('on')
     plt.show()
+    im = Image.fromarray(inputImage)
+    im.save(stepName)
     
-def plotRDF(rdf):
-    print ggplot(aes(x='r',y='Intensity'), data=rdf) + \
-        geom_point(color='steelblue')
-
+def plotRDF(rdf, fileName):
+    if (re.search('405', fileName)):
+        color = 'steelblue'
+    if (re.search('488', fileName)):
+        color = '#33CC33'
+    plot = ggplot(aes(x='r',y='Intensity'), data=rdf) + \
+        geom_point(color= color)
+    print plot
+    plot.save(fileName[:-4] + '_RDF.png')
 
 def label2mask(labeledImage,label):
     labeledImage[labeledImage!=label] = 0
@@ -56,8 +65,7 @@ def cartesian2Polar(x,y):
     r = math.sqrt(np.square(x)+np.square(y))
     phi = math.atan2(x,y)
     return r, phi
-    
-    
+
 def cartesian2Spheric(x,y,z):
     r = math.sqrt(np.square(x)+np.square(y)+np.square(z))
     theta = math.atan2(y,x)
@@ -68,13 +76,13 @@ def recenterCertesian(centroid,x,y,z=False):
     if z == False:
         xCentroid,yCentroid = centroid
         x = x-xCentroid
-        y= y-yCentroid
+        y = y-yCentroid
         return x, y
     else:
         xCentroid,yCentroid,zCentroid = centroid
         x = x-xCentroid
-        y= y-yCentroid
-        z=z-zCentroid
+        y = y-yCentroid
+        z = z-zCentroid
         return x, y, z
         
 def computeRDF(inputImage, centroid, diameter, numberOfBins):  
@@ -149,42 +157,52 @@ def getCentralRegionAndProperties(inputImage, imageHeight, imageWidth):
     circularity = 4*math.pi*(area/perimeter**2)
     
     return label, centroid, perimeter, area, diameter, majorAxis, minorAxis, circularity, boundingBox
-    
-    
+
 
 ################## open single z plane from 16bit image
-fileName = 'B01_405_z720.tif'
+fileName = 'B01_488_z720.tif'
 inputImage = cv2.imread(fileName, -1) #0 = grey, 1=RGB, -1=unchanged
 
 ################## validate input visually
-visualizeMatrix(inputImage)
-################## convert to 8bit
+stepNameInput = fileName[:-4] + '_inputImage' + '.tif'
+visualizeSaveMatrix(inputImage, stepNameInput)
 
+################## convert input image to 8bit
+processedImage = processGrayImage(inputImage)
+
+################## smoothen and threshold input image
+gaussianSigma = 5
+thresholdedImage = thresholdImage(processedImage, gaussianSigma)
+
+################## segment shperoid area
 minSpheroidArea = 500
 dilationDisk = 100
 blockSize = 501
-gaussianSigma = 5
-numberOfProcesses = 4
-numberOfBins = 5 # numberOfBins = max for single pixel resolution
 
-imageHeight, imageWidth = inputImage.shape[:2]
-
-processedImage = processGrayImage(inputImage)
-thresholdedImage = thresholdImage(processedImage, gaussianSigma)
 processedBinaryImage = processBinaryImage(thresholdedImage, dilationDisk)
-visualizeMatrix(processedBinaryImage)
+stepNameBinary = fileName[:-4] + '_processedBinaryImage' + '.tif'
+visualizeSaveMatrix(processedBinaryImage, stepNameBinary)
 
+################## calculate center of spheroid
+imageHeight, imageWidth = inputImage.shape[:2]
 labeledImage = measure.label(thresholdedImage)
-
 getCentralRegionAndProperties(labeledImage, imageHeight, imageWidth)
 label, centroid, perimeter, area, diameter, majorAxis, minorAxis, circularity, boundingBox = getCentralRegionAndProperties(labeledImage, imageHeight, imageWidth)
 
 maskedImage = np.multiply(inputImage,label2mask(labeledImage,label))
+
+numberOfProcesses = 4
 #pool = multiprocessing.Pool(processes=numberOfProcesses)
 #maskedImageRDF = pool.map(computeRDF, inputImage, centroid)
 #pool.close()
-#pool.join() 
+#pool.join()
+
+################## calculate radial distribution function
+numberOfBins = 5 # numberOfBins = max for single pixel resolution
 maskedImageRDF = computeRDF(inputImage, centroid, diameter, numberOfBins)
 
-visualizeMatrix(maskedImage)
-plotRDF(maskedImageRDF)
+stepNameMasked = fileName[:-4] + '_maskedImage' + '.tif'
+visualizeSaveMatrix(maskedImage, stepNameMasked)
+plotRDF(maskedImageRDF, fileName)
+
+print 'Ran MorphoSphere3D for ' + fileName[:-4]
