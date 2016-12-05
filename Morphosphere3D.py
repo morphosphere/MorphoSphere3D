@@ -53,17 +53,27 @@ def visualizeSaveMatrix(inputImage, stepName):
     plt.show()
     im = Image.fromarray(inputImage)
     im.save(stepName)
-    
+
 def plotRDF(rdf, fileName):
-    ##### ##### ##### To do: plot in same graph, axis labels, x axis in um, y min 0
-    if (re.search('405', fileName)):
-        color = 'steelblue'
-    if (re.search('488', fileName)):
-        color = '#33CC33'
-    plot = ggplot(aes(x='r',y='Intensity'), data=rdf) + \
-        geom_point(color= color)
+    plot = ggplot(aes(x='r',y='IntensityNuclei'), data=rdf) + \
+        geom_point(color= 'steelblue')
     print plot
-    plot.save(fileName[:-4] + '_RDF.png')
+    plot.save(fileName[:-4] + '_Nuclei_RDF.png')
+
+    plot = ggplot(aes(x='r',y='IntensityVirus'), data=rdf) + \
+        geom_point(color= '#33CC33')
+    print plot
+    plot.save(fileName[:-4] + '_Virus_RDF.png')
+
+# combining two datasets in one plot does not work yet although claimed otherwise
+# alterantively, combine both datasets into one and print as facet_grid
+# def plotRDF(rdfNuclei, fileNameNuclei, rdfVirus, fileNameVirus):
+#     ##### ##### ##### To do: plot in same graph, axis labels, x axis in um, y min 0
+#     rdfPlot = ggplot(aes(x = 'r', y = 'Intensity'), data = rdfNuclei) + \
+#               geom_point('steelblue') + \
+#               geom_point(x = 'r', y = 'Intensity', data = rdfVirus, color = '#33CC33')
+#     print rdfPlot
+#     rdfPlot.save(fileNameVirus[:-4] + '_RDF.png')
 
 def label2mask(labeledImage,label):
     labeledImage[labeledImage!=label] = 0
@@ -95,11 +105,11 @@ def recenterCertesian(centroid,x,y,z=False):
         z = z-zCentroid
         return x, y, z
         
-def computeRDF(inputImage, centroid, diameter, numberOfBins):  
-    n,m = np.shape(inputImage)
-    #preallocate matrix for r values
+def computeRDF(inputImageNuclei, inputImgeVirus, centroid, diameter, numberOfBins):
+    n,m = np.shape(inputImageNuclei)
+    # preallocate matrix for r values
     rValues = np.zeros((n,m))
-    columns = ['r','Intensity']
+    columns = ['r','IntensityNuclei', 'IntensityVirus']
     rdf = pd.DataFrame(columns=columns)
     
     for iN in range(0,n):
@@ -109,9 +119,11 @@ def computeRDF(inputImage, centroid, diameter, numberOfBins):
         r, phi = vecCartesian2Polar(x, y)
         #r, phi = cartesian2Polar(x,y)
         rValues[iN,vecM] = r
+
     # convert intensities and r matrices to 1D arrays for speed
     rValuesVect = rValues.ravel()
-    inputImageVect = inputImage.ravel()
+    inputImageNucleiVect = inputImageNuclei.ravel()
+    inputImageVirusVect = inputImageVirus.ravel()
     
     if numberOfBins == 'max':
         steps = 1
@@ -121,8 +133,9 @@ def computeRDF(inputImage, centroid, diameter, numberOfBins):
         values = np.arange(steps,diameter/2,steps)
     # calculate RDF as np. e.g. sum / mean / median / SD / .... optimal need to be evaluated
     for iRvalue in values:
-        iIntensity = np.mean(inputImageVect[np.where(rValuesVect[np.logical_and(rValuesVect >= iRvalue-steps,rValuesVect <= iRvalue)])])
-        iRDF = pd.DataFrame({'r': [iRvalue], 'Intensity': [iIntensity]})
+        iIntensityNuclei = np.mean(inputImageNucleiVect[np.where(rValuesVect[np.logical_and(rValuesVect >= iRvalue-steps,rValuesVect <= iRvalue)])])
+        iIntensityVirus = np.mean(inputImageVirusVect[np.where(rValuesVect[np.logical_and(rValuesVect >= iRvalue - steps, rValuesVect <= iRvalue)])])
+        iRDF = pd.DataFrame({'r': [iRvalue], 'IntensityNuclei': [iIntensityNuclei], 'IntensityVirus': [iIntensityVirus]})
         rdf = rdf.append(iRDF)
     return rdf.sort('r')
     
@@ -219,10 +232,12 @@ numberOfProcesses = 4
 
 ################## calculate radial distribution function
 numberOfBins = 5 # numberOfBins = max for single pixel resolution
-maskedImageNucleiRDF = computeRDF(inputImageNuclei, centroid, diameter, numberOfBins)
-maskedImageVirusRDF = computeRDF(inputImageVirus, centroid, diameter, numberOfBins)
+maskedImageRDF = computeRDF(inputImageNuclei,inputImageVirus, centroid, diameter, numberOfBins)
 
-plotRDF(maskedImageNucleiRDF, fileNameNuclei)
-plotRDF(maskedImageVirusRDF, fileNameVirus)
+################## plot RDFs
+plotRDF(maskedImageRDF, fileNameNuclei)
+
+################## calculate radial distribution function
+maskedImageRDF.to_csv(fileNameNuclei[:-4] + '_RDF.csv', sep=',')
 
 print 'Ran MorphoSphere3D for ' + fileNameNuclei[:-4]
