@@ -131,7 +131,7 @@ def computeRDF(inputImageNuclei, inputImageVirus, centroid, diameter, numberOfBi
         values = np.unique(rValuesVect)
     else:
         stepsize = np.floor((diameter/2)/numberOfBins)
-        offset = np.floor(diameter/2)%numberOfBins
+        offset = np.floor((diameter/2)%stepsize)
         values = np.arange(offset,diameter/2,stepsize)
 
     # calculate RDF as np. e.g. sum / mean / median / SD / .... optimal need to be evaluated
@@ -232,14 +232,14 @@ visualizeSaveMatrix(maskedImageNuclei, stepNameMaskedNuclei)
 stepNameMaskedVirus = fileNameVirus[:-4] + '_maskedImageVirus' + '.tif'
 visualizeSaveMatrix(maskedImageVirus, stepNameMaskedVirus)
 
-numberOfProcesses = 4
+#numberOfProcesses = 4
 #pool = multiprocessing.Pool(processes=numberOfProcesses)
 #maskedImageRDF = pool.map(computeRDF, inputImage, centroid)
 #pool.close()
 #pool.join()
 
 ################## calculate radial distribution function
-numberOfBins = 5 # numberOfBins = max for single pixel resolution
+numberOfBins = 100 # numberOfBins = 'max' for single pixel resolution
 maskedImageRDF = computeRDF(inputImageNuclei,inputImageVirus, centroid, diameter, numberOfBins)
 
 ################## plot RDFs
