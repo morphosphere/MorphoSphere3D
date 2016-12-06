@@ -92,7 +92,7 @@ def cartesian2Spheric(x,y,z):
     phi = math.acos(z/r)
     return r, theta, phi
     
-def recenterCertesian(centroid,x,y,z=False):
+def recenterCertesian(centroid, x, y, z=False):
     if z == False:
         xCentroid,yCentroid = centroid
         x = x-xCentroid
@@ -105,7 +105,7 @@ def recenterCertesian(centroid,x,y,z=False):
         z = z-zCentroid
         return x, y, z
         
-def computeRDF(inputImageNuclei, inputImgeVirus, centroid, diameter, numberOfBins):
+def computeRDF(inputImageNuclei, inputImageVirus, centroid, diameter, numberOfBins):
     n,m = np.shape(inputImageNuclei)
     # preallocate matrix for r values
     rValues = np.zeros((n,m))
@@ -114,7 +114,7 @@ def computeRDF(inputImageNuclei, inputImgeVirus, centroid, diameter, numberOfBin
     
     for iN in range(0,n):
         vecM = np.arange(m)
-        x,y = recenterCertesian(centroid,iN,vecM)
+        x, y = recenterCertesian(centroid, iN, vecM)
         vecCartesian2Polar = np.vectorize(cartesian2Polar)
         r, phi = vecCartesian2Polar(x, y)
         #r, phi = cartesian2Polar(x,y)
@@ -126,17 +126,26 @@ def computeRDF(inputImageNuclei, inputImgeVirus, centroid, diameter, numberOfBin
     inputImageVirusVect = inputImageVirus.ravel()
     
     if numberOfBins == 'max':
-        steps = 1
+        stepsize = 1
+        offset = 1
         values = np.unique(rValuesVect)
     else:
-        steps = np.floor((diameter/2)%numberOfBins)
-        values = np.arange(steps,diameter/2,steps)
+        stepsize = np.floor((diameter/2)/numberOfBins)
+        offset = np.floor(diameter/2)%numberOfBins
+        values = np.arange(offset,diameter/2,stepsize)
+
     # calculate RDF as np. e.g. sum / mean / median / SD / .... optimal need to be evaluated
     for iRvalue in values:
-        iIntensityNuclei = np.mean(inputImageNucleiVect[np.where(rValuesVect[np.logical_and(rValuesVect >= iRvalue-steps,rValuesVect <= iRvalue)])])
-        iIntensityVirus = np.mean(inputImageVirusVect[np.where(rValuesVect[np.logical_and(rValuesVect >= iRvalue - steps, rValuesVect <= iRvalue)])])
-        iRDF = pd.DataFrame({'r': [iRvalue], 'IntensityNuclei': [iIntensityNuclei], 'IntensityVirus': [iIntensityVirus]})
-        rdf = rdf.append(iRDF)
+        if iRvalue == offset:
+            iIntensityNuclei = np.mean(inputImageNucleiVect[np.where(rValuesVect[rValuesVect <= iRvalue])])
+            iIntensityVirus = np.mean(inputImageVirusVect[np.where(rValuesVect[rValuesVect <= iRvalue])])
+            iRDF = pd.DataFrame({'r': [iRvalue], 'IntensityNuclei': [iIntensityNuclei], 'IntensityVirus': [iIntensityVirus]})
+            rdf = rdf.append(iRDF)
+        else:
+            iIntensityNuclei = np.mean(inputImageNucleiVect[np.where(rValuesVect[np.logical_and(rValuesVect >= iRvalue-stepsize,rValuesVect <= iRvalue)])])
+            iIntensityVirus = np.mean(inputImageVirusVect[np.where(rValuesVect[np.logical_and(rValuesVect >= iRvalue - stepsize, rValuesVect <= iRvalue)])])
+            iRDF = pd.DataFrame({'r': [iRvalue], 'IntensityNuclei': [iIntensityNuclei], 'IntensityVirus': [iIntensityVirus]})
+            rdf = rdf.append(iRDF)
     return rdf.sort('r')
     
 def getCentralRegionAndProperties(labeledImage, imageHeight, imageWidth):
@@ -183,8 +192,8 @@ def getCentralRegionAndProperties(labeledImage, imageHeight, imageWidth):
 
 
 ################## open single z plane from 16bit image
-fileNameNuclei = 'B01_405_z720.tif'
-fileNameVirus = 'B01_488_z720.tif'
+fileNameNuclei = 'C01_405_z708.tif'
+fileNameVirus = 'C01_488_z708.tif'
 inputImageNuclei = cv2.imread(fileNameNuclei, -1) #0 = grey, 1=RGB, -1=unchanged
 inputImageVirus = cv2.imread(fileNameVirus, -1) #0 = grey, 1=RGB, -1=unchanged
 
@@ -212,7 +221,6 @@ visualizeSaveMatrix(processedBinaryImage, stepNameBinaryNuclei)
 ################## calculate center of spheroid
 imageHeight, imageWidth = inputImageNuclei.shape[:2]
 labeledImageNuclei = measure.label(thresholdedImageNuclei)
-getCentralRegionAndProperties(labeledImageNuclei, imageHeight, imageWidth)
 label, centroid, perimeter, area, diameter, majorAxis, minorAxis, circularity, boundingBox = getCentralRegionAndProperties(labeledImageNuclei, imageHeight, imageWidth)
 
 labeled2mask = label2mask(labeledImageNuclei,label)
@@ -238,6 +246,6 @@ maskedImageRDF = computeRDF(inputImageNuclei,inputImageVirus, centroid, diameter
 plotRDF(maskedImageRDF, fileNameNuclei)
 
 ################## calculate radial distribution function
-maskedImageRDF.to_csv(fileNameNuclei[:-4] + '_RDF.csv', sep=',')
+maskedImageRDF.to_csv(fileNameNuclei[:-4] + '_RDF_sum.csv', sep=',')
 
 print 'Ran MorphoSphere3D for ' + fileNameNuclei[:-4]
