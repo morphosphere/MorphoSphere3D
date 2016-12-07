@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from ggplot import *
 from PIL import Image
-import re
+#import re
 #import multiproessing
 
 
@@ -80,72 +80,47 @@ def label2mask(labeledImage,label):
     labeledImage[labeledImage==label] = 1
     return labeledImage
     #for unique_counts(labeledImage)
-    
-def cartesian2Polar(x,y):
-    r = math.sqrt(np.square(x)+np.square(y))
-    phi = math.atan2(x,y)
-    return r, phi
 
-def cartesian2Spheric(x,y,z):
-    r = math.sqrt(np.square(x)+np.square(y)+np.square(z))
-    theta = math.atan2(y,x)
-    phi = math.acos(z/r)
-    return r, theta, phi
-    
-def recenterCertesian(centroid, x, y, z=False):
-    if z == False:
-        xCentroid,yCentroid = centroid
-        x = x-xCentroid
-        y = y-yCentroid
-        return x, y
-    else:
-        xCentroid,yCentroid,zCentroid = centroid
-        x = x-xCentroid
-        y = y-yCentroid
-        z = z-zCentroid
-        return x, y, z
-        
 def computeRDF(inputImageNuclei, inputImageVirus, centroid, diameter, numberOfBins):
-    n,m = np.shape(inputImageNuclei)
-    # preallocate matrix for r values
-    rValues = np.zeros((n,m))
-    columns = ['r','IntensityNuclei', 'IntensityVirus']
+    ################## preallocate matrix for r values
+    n, m = np.shape(inputImageVirus)
+    radiusToCentroid = np.zeros((n, m))
+
+    ################## define DataFrame
+    columns = ['r', 'IntensityBNuclei', 'IntensityVirus']
     rdf = pd.DataFrame(columns=columns)
-    
-    for iN in range(0,n):
-        vecM = np.arange(m)
-        x, y = recenterCertesian(centroid, iN, vecM)
-        vecCartesian2Polar = np.vectorize(cartesian2Polar)
-        r, phi = vecCartesian2Polar(x, y)
-        #r, phi = cartesian2Polar(x,y)
-        rValues[iN,vecM] = r
 
-    # convert intensities and r matrices to 1D arrays for speed
-    rValuesVect = rValues.ravel()
-    inputImageNucleiVect = inputImageNuclei.ravel()
-    inputImageVirusVect = inputImageVirus.ravel()
-    
-    if numberOfBins == 'max':
-        stepsize = 1
-        offset = 1
-        values = np.unique(rValuesVect)
-    else:
-        stepsize = np.floor((diameter/2)/numberOfBins)
-        offset = np.floor((diameter/2)%stepsize)
-        values = np.arange(offset,diameter/2,stepsize)
+    ################## calculate radius bin size and max radius
+    radiusDelta = np.floor((diameter/2)/numberOfBins)
+    radiusMax = (math.ceil((diameter/2)/radiusDelta)) * radiusDelta  # segmented radius to rounded up n*radiusDelta
 
-    # calculate RDF as np. e.g. sum / mean / median / SD / .... optimal need to be evaluated
-    for iRvalue in values:
-        if iRvalue == offset:
-            iIntensityNuclei = np.mean(inputImageNucleiVect[np.where(rValuesVect[rValuesVect <= iRvalue])])
-            iIntensityVirus = np.mean(inputImageVirusVect[np.where(rValuesVect[rValuesVect <= iRvalue])])
-            iRDF = pd.DataFrame({'r': [iRvalue], 'IntensityNuclei': [iIntensityNuclei], 'IntensityVirus': [iIntensityVirus]})
-            rdf = rdf.append(iRDF)
-        else:
-            iIntensityNuclei = np.mean(inputImageNucleiVect[np.where(rValuesVect[np.logical_and(rValuesVect >= iRvalue-stepsize,rValuesVect <= iRvalue)])])
-            iIntensityVirus = np.mean(inputImageVirusVect[np.where(rValuesVect[np.logical_and(rValuesVect >= iRvalue - stepsize, rValuesVect <= iRvalue)])])
-            iRDF = pd.DataFrame({'r': [iRvalue], 'IntensityNuclei': [iIntensityNuclei], 'IntensityVirus': [iIntensityVirus]})
-            rdf = rdf.append(iRDF)
+    ################## initialize vectors for mean intensity calculations
+    radiusValues = np.arange(radiusDelta, radiusMax + radiusDelta, radiusDelta) # calculate RDF for more than diameter to see intensity drop and account for imperfect roundness
+    intensityNucleiSum = np.zeros(len(radiusValues))
+    intensityNucleiCounter = np.zeros(len(radiusValues))
+    intensityNuclei = np.zeros(len(radiusValues))
+    intensityVirusSum = np.zeros(len(radiusValues))
+    intensityVirusCounter = np.zeros(len(radiusValues))
+    intensityVirus = np.zeros(len(radiusValues))
+
+    ################## calculate each pixel's distance to the centroid and add intensity to respective bin's sum
+    for iN in range(0, n):
+        for iM in range(0, m):
+            radiusToCentroid[iN, iM] = math.hypot((iN - centroid[0]), (iM - centroid[1]))
+            radiusValue = math.floor(radiusToCentroid[iN, iM] / radiusDelta)
+            if radiusValue <= len(radiusValues) - 1:
+                intensityNucleiSum[radiusValue] = intensityNucleiSum[radiusValue] + inputImageNuclei[iN, iM]
+                intensityNucleiCounter[radiusValue] = intensityNucleiCounter[radiusValue] + 1
+                intensityVirusSum[radiusValue] = intensityVirusSum[radiusValue] + inputImageVirus[iN, iM]
+                intensityVirusCounter[radiusValue] = intensityVirusCounter[radiusValue] + 1
+
+    ################## calculate mean intensities and append DataFrame
+    for iRadius in range(0, len(radiusValues)):
+        intensityNuclei[iRadius] = intensityNucleiSum[iRadius] / intensityNucleiCounter[iRadius]
+        intensityVirus[iRadius] = intensityVirusSum[iRadius] / intensityVirusCounter[iRadius]
+        iRDF = pd.DataFrame({'r': [iRadius * radiusDelta], 'IntensityNuclei' : [intensityNuclei[iRadius]], 'IntensityVirus': [intensityVirus[iRadius]]})  # intensity between iRadius and iRadius + radiusDelta
+        rdf = rdf.append(iRDF)
+
     return rdf.sort('r')
     
 def getCentralRegionAndProperties(labeledImage, imageHeight, imageWidth):
@@ -192,14 +167,14 @@ def getCentralRegionAndProperties(labeledImage, imageHeight, imageWidth):
 
 
 ################## open single z plane from 16bit image
-fileNameNuclei = 'C01_405_z708.tif'
-fileNameVirus = 'C01_488_z708.tif'
+fileNameNuclei = 'B01_405_z720.tif'
+fileNameVirus = 'B01_488_z720.tif'
 inputImageNuclei = cv2.imread(fileNameNuclei, -1) #0 = grey, 1=RGB, -1=unchanged
 inputImageVirus = cv2.imread(fileNameVirus, -1) #0 = grey, 1=RGB, -1=unchanged
 
 ################## validate input visually
-visualizeMatrix(inputImageNuclei)
-visualizeMatrix(inputImageVirus)
+#visualizeMatrix(inputImageNuclei)
+#visualizeMatrix(inputImageVirus)
 
 ################## convert input image to 8bit
 processedImageNuclei = processGrayImage(inputImageNuclei)
@@ -209,14 +184,14 @@ processedImageVirus = processGrayImage(inputImageVirus)
 gaussianSigma = 5
 thresholdedImageNuclei = thresholdImage(processedImageNuclei, gaussianSigma)
 
-################## segment shperoid area
+################## segment spheroid area
 minSpheroidArea = 500
 dilationDisk = 100
 blockSize = 501
 
 processedBinaryImage = processBinaryImage(thresholdedImageNuclei, dilationDisk)
 stepNameBinaryNuclei = fileNameNuclei[:-4] + '_processedBinaryImageNuclei' + '.tif'
-visualizeSaveMatrix(processedBinaryImage, stepNameBinaryNuclei)
+#visualizeSaveMatrix(processedBinaryImage, stepNameBinaryNuclei)
 
 ################## calculate center of spheroid
 imageHeight, imageWidth = inputImageNuclei.shape[:2]
@@ -228,9 +203,9 @@ maskedImageNuclei = np.multiply(inputImageNuclei, labeled2mask)
 maskedImageVirus = np.multiply(inputImageVirus,labeled2mask)
 
 stepNameMaskedNuclei = fileNameNuclei[:-4] + '_maskedImageNuclei' + '.tif'
-visualizeSaveMatrix(maskedImageNuclei, stepNameMaskedNuclei)
+#visualizeSaveMatrix(maskedImageNuclei, stepNameMaskedNuclei)
 stepNameMaskedVirus = fileNameVirus[:-4] + '_maskedImageVirus' + '.tif'
-visualizeSaveMatrix(maskedImageVirus, stepNameMaskedVirus)
+#visualizeSaveMatrix(maskedImageVirus, stepNameMaskedVirus)
 
 #numberOfProcesses = 4
 #pool = multiprocessing.Pool(processes=numberOfProcesses)
@@ -246,6 +221,6 @@ maskedImageRDF = computeRDF(inputImageNuclei,inputImageVirus, centroid, diameter
 plotRDF(maskedImageRDF, fileNameNuclei)
 
 ################## calculate radial distribution function
-maskedImageRDF.to_csv(fileNameNuclei[:-4] + '_RDF_sum.csv', sep=',')
+maskedImageRDF.to_csv(fileNameNuclei[:-4] + '_RDF.csv', sep=',')
 
 print 'Ran MorphoSphere3D for ' + fileNameNuclei[:-4]
