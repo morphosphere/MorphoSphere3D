@@ -87,7 +87,7 @@ def computeRDF(inputImageNuclei, inputImageVirus, centroid, diameter, numberOfBi
     radiusToCentroid = np.zeros((n, m))
 
     ################## define DataFrame
-    columns = ['r', 'IntensityBNuclei', 'IntensityVirus']
+    columns = ['r', 'IntensityNuclei', 'IntensityVirus']
     rdf = pd.DataFrame(columns=columns)
 
     ################## calculate radius bin size and max radius
