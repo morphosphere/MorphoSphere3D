@@ -19,7 +19,7 @@ from PIL import Image
 
 
 def processGrayImage(inputImage):
-    processedImage = (inputImage*255).astype('uint8')
+    processedImage = (inputImage/255).astype('uint8')
     processedImage = np.asarray(processedImage)
     return processedImage
     
@@ -288,4 +288,4 @@ plotRDF(maskedImageRDF, fileNameNuclei)
 ################## calculate radial distribution function
 maskedImageRDF.to_csv(fileNameNuclei[:-4] + '_RDF_VersionB.csv', sep=',')
 
-print 'Ran MorphoSphere3D for ' + fileNameNuclei[:-4]
+print 'Ran MorphoSphere2D for ' + fileNameNuclei[:-4]
