@@ -33,6 +33,9 @@ def thresholdImage(inputImage, gaussianSigma):
 def visualizeMatrix(inputImage):
     if inputImage.dtype == 'bool':
         inputImage = inputImage.astype(int) * 255
+    ################## convert to 8bit
+    if inputImage.dtype == 'int64':
+        inputImage = cv2.convertScaleAbs(inputImage, alpha=(255.0/65535.0))
 
     plt.imshow(inputImage, 'gray')
     plt.set_cmap('gray')
