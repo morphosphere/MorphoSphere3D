@@ -13,14 +13,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from ggplot import *
-from PIL import Image
-#import re
-#import multiproessing
 
 
 def processGrayImage(inputImage):
-    processedImage = (inputImage/255).astype('uint8')
-    processedImage = np.asarray(processedImage)
+    processedImage = cv2.convertScaleAbs(inputImage, alpha=(255.0/65535.0))
     return processedImage
     
 def processBinaryImage(inputImage, dilationDisk):
@@ -46,24 +42,26 @@ def visualizeMatrix(inputImage):
 def visualizeSaveMatrix(inputImage, stepName):
     if inputImage.dtype == 'bool':
         inputImage = inputImage.astype(int)*255
-    
+    ################## convert to 8bit
+    if inputImage.dtype == 'int64':
+        inputImage = cv2.convertScaleAbs(inputImage, alpha=(255.0/65535.0))
+
     plt.imshow(inputImage, 'gray')
     plt.set_cmap('gray')
     plt.axis('on')
     plt.show()
-    im = Image.fromarray(inputImage)
-    im.save(stepName)
+    cv2.imwrite(stepName, inputImage)
 
 def plotRDF(rdf, fileName):
     plot = ggplot(aes(x='r',y='IntensityNuclei'), data=rdf) + \
         geom_point(color= 'steelblue')
     print plot
-    plot.save(fileName[:-4] + '_Nuclei_RDF_VersionB.png')
+    plot.save(fileName[:-4] + '_Nuclei_RDF.png')
 
     plot = ggplot(aes(x='r',y='IntensityVirus'), data=rdf) + \
         geom_point(color= '#33CC33')
     print plot
-    plot.save(fileName[:-4] + '_Virus_RDF_VersionB.png')
+    plot.save(fileName[:-4] + '_Virus_RDF.png')
 
 ################## combining two datasets in one plot does not work yet although claimed otherwise
 ################## alterantively, combine both datasets into one and print as facet_grid
@@ -216,7 +214,7 @@ def getCentralRegionAndProperties(labeledImage, imageHeight, imageWidth):
     
     #spheroidBWImage = selectedCC.astype("uint8")
 
-    ################## actually not neccassary
+    ################## actually not necessary
     boundingBox =  allProperties[indexOfMinDistance].bbox
     
     label = allProperties[indexOfMinDistance].label
@@ -230,10 +228,9 @@ def getCentralRegionAndProperties(labeledImage, imageHeight, imageWidth):
     
     return label, centroid, perimeter, area, diameter, majorAxis, minorAxis, circularity, boundingBox
 
-
 ################## open single z plane from 16bit image
-fileNameNuclei = 'B01_405_z720_16bit.tif'
-fileNameVirus = 'B01_488_z720_16bit.tif'
+fileNameNuclei = 'C01_405_z708_16bit.tif'
+fileNameVirus = 'C01_488_z708_16bit.tif'
 inputImageNuclei = cv2.imread(fileNameNuclei, -1) #0 = grey, 1=RGB, -1=unchanged
 inputImageVirus = cv2.imread(fileNameVirus, -1) #0 = grey, 1=RGB, -1=unchanged
 
@@ -251,12 +248,12 @@ thresholdedImageNuclei = thresholdImage(processedImageNuclei, gaussianSigma)
 
 ################## segment spheroid area
 minSpheroidArea = 500
-dilationDisk = 100
+dilationDisk = 10
 blockSize = 501
 
 processedBinaryImage = processBinaryImage(thresholdedImageNuclei, dilationDisk)
 stepNameBinaryNuclei = fileNameNuclei[:-4] + '_processedBinaryImageNuclei' + '.tif'
-#visualizeSaveMatrix(processedBinaryImage, stepNameBinaryNuclei)
+visualizeSaveMatrix(processedBinaryImage, stepNameBinaryNuclei)
 
 ################## calculate center of spheroid
 imageHeight, imageWidth = inputImageNuclei.shape[:2]
@@ -265,12 +262,12 @@ label, centroid, perimeter, area, diameter, majorAxis, minorAxis, circularity, b
 
 labeled2mask = label2mask(labeledImageNuclei,label)
 maskedImageNuclei = np.multiply(inputImageNuclei, labeled2mask)
-maskedImageVirus = np.multiply(inputImageVirus,labeled2mask)
+maskedImageVirus = np.multiply(inputImageVirus, labeled2mask)
 
 stepNameMaskedNuclei = fileNameNuclei[:-4] + '_maskedImageNuclei' + '.tif'
-#visualizeSaveMatrix(maskedImageNuclei, stepNameMaskedNuclei)
+visualizeSaveMatrix(maskedImageNuclei, stepNameMaskedNuclei)
 stepNameMaskedVirus = fileNameVirus[:-4] + '_maskedImageVirus' + '.tif'
-#visualizeSaveMatrix(maskedImageVirus, stepNameMaskedVirus)
+visualizeSaveMatrix(maskedImageVirus, stepNameMaskedVirus)
 
 #numberOfProcesses = 4
 #pool = multiprocessing.Pool(processes=numberOfProcesses)
@@ -286,6 +283,6 @@ maskedImageRDF = computeRDF(inputImageNuclei,inputImageVirus, centroid, diameter
 plotRDF(maskedImageRDF, fileNameNuclei)
 
 ################## calculate radial distribution function
-maskedImageRDF.to_csv(fileNameNuclei[:-4] + '_RDF_VersionB.csv', sep=',')
+maskedImageRDF.to_csv(fileNameNuclei[:-4] + '_RDF.csv', sep=',')
 
-print 'Ran MorphoSphere2D for ' + fileNameNuclei[:-4]
+print 'Ran MorphoSphere2D for ' + fileNameNuclei[:-4] + ' with diameter of ' + diameter + ' pixels'
