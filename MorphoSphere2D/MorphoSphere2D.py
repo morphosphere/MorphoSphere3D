@@ -285,4 +285,5 @@ plotRDF(maskedImageRDF, fileNameNuclei)
 ################## calculate radial distribution function
 maskedImageRDF.to_csv(fileNameNuclei[:-4] + '_RDF.csv', sep=',')
 
-print 'Ran MorphoSphere2D for ' + fileNameNuclei[:-4] + ' with diameter of ' + diameter + ' pixels'
+################## final output
+print 'Ran MorphoSphere2D for ' + fileNameNuclei[:-4] + ' with diameter of ' + str(diameter) + ' pixels'
