@@ -170,7 +170,7 @@ def processBinary(processedImage, sigma):
     gaussian = filters.gaussian(processedImage, sigma=sigma)
     ################## threshold binary otsu
     threshold = filters.threshold_otsu(gaussian)
-    binary = processedImageNuclei > threshold
+    binary = gaussian > threshold
     ################## dilate and fill holes
     dilated = morphology.binary_dilation(binary)  # dilation disk?
     processedBinary = ndimage.binary_fill_holes(dilated)
@@ -188,7 +188,7 @@ def visualizeMatrix(inputImage):
     if inputImage.dtype == 'int64':
         inputImage = cv2.convertScaleAbs(inputImage, alpha=(255.0/65535.0))
 
-    plt.imshow(inputImage[(lenZ/2)], 'gray')
+    plt.imshow(inputImage[math.floor(lenZ/2)], 'gray')
     plt.set_cmap('gray')
     plt.axis('on')
     plt.show()
@@ -200,7 +200,7 @@ def visualizeSaveMatrix(inputImage, stepName):
     if inputImage.dtype == 'int64':
         inputImage = cv2.convertScaleAbs(inputImage, alpha=(255.0/65535.0))
 
-    plt.imshow(inputImage[(lenZ/2)], 'gray')
+    plt.imshow(inputImage[math.floor(lenZ/2)], 'gray')
     plt.set_cmap('gray')
     plt.axis('on')
     plt.show()
@@ -210,8 +210,8 @@ def visualizeSaveMatrix(inputImage, stepName):
 ##########################################
 
 ################## Define input images (16bit, otherwise skip processGray)
-fileNameNuclei = 'B01_405_downsampled_16bit.tif'
-fileNameVirus = 'B01_488_downsampled_16bit.tif'
+fileNameNuclei = 'B01_405_down_8bit.tif'
+fileNameVirus = 'B01_488_down_8bit.tif'
 
 ################## Read images
 inputImageNuclei = io.imread(fileNameNuclei, plugin='tifffile') # dimesions z, y, x
@@ -223,22 +223,26 @@ lenY = len(inputImageNuclei[1,:,1])
 lenZ = len(inputImageNuclei[:,1,1])
 
 ################## Convert input image to 8bit
-processedImageNuclei = processGrayImage(inputImageNuclei)
-processedImageVirus = processGrayImage(inputImageVirus)
+# processedImageNuclei = processGrayImage(inputImageNuclei)
+# processedImageVirus = processGrayImage(inputImageVirus)
+
+processedImageNuclei = inputImageNuclei
+processedImageVirus = inputImageVirus
 
 ################## Show images
-visualizeMatrix(processedImageNuclei)
-visualizeMatrix(processedImageVirus)
+# visualizeMatrix(processedImageNuclei)
+# visualizeMatrix(processedImageVirus)
 
 ################## Segment spheroid in nuclei channel
-sigma = 1
+sigma = 5
 processedBinaryImage = processBinary(processedImageNuclei, sigma)
+# visualizeMatrix(processedBinaryImage)
 
 ################## Label and measure objects
 labeledImageNuclei = measure.label(processedBinaryImage)
 
 ################## Calculate centroid, segment and get other properties
-minSpheroidVolume = 50 # sum over all pixels within labeled region
+minSpheroidVolume = 1000000 # sum over all pixels within labeled region
 label, centroid, volume, boundingBox = getCentralRegionAndProperties(labeledImageNuclei, lenZ, lenY, lenX, minSpheroidVolume)
 
 ################## Create mask of segmented ROI
