@@ -1,5 +1,5 @@
 """
-MorphoSphere3D: analysis platform for lightsheet microscopy of organoids and spheroids
+test_calculateMeanRadius: unit test for MorphoSphere3D function calculateMeanRadius
 @authors: Fanny Georgi, Vardan Andriasyan, Artur Yakimovich
 
 """
