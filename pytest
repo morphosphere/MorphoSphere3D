@@ -1,0 +1,8 @@
+import pytest
+ 
+@pytest.fixture()
+def resource_setup(request):
+    print("resource_setup")
+    def resource_teardown():
+        print("resource_teardown")
+    request.addfinalizer(resource_teardown)
