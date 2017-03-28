@@ -4,5 +4,11 @@ python:
 # command to install dependencies
 install: "pip install -r requirements.txt"
 install: "pip install -U pytest"
+install: "pip install -U cv2"
+install: "pip install -U scipy"
+install: "pip install -U skimage"
+install: "pip install -U matplotlib"
+install: "pip install -U pandas"
+install: "pip install -U ggplot"
 # command to run tests
 script: pytest
