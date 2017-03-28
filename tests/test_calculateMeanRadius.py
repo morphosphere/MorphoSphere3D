@@ -11,11 +11,12 @@ from skimage import measure,morphology, io, filters
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-from ggplot import *
+
+print('running tests...')
 
 ################## Function to test ##################
 ###############################################
-
+'''
 def calculateMeanRadius(labeled2mask, centroid, lenX, lenY, lenZ):
     # shift image for boundary condition
     imageWithBoundary = np.zeros((lenZ + 2, lenY + 2, lenX + 2))
@@ -138,4 +139,4 @@ def getCentralRegionAndProperties(labeledImage, lenZ, lenY, lenX, minSpheroidVol
     #sphericity = (2 * (majorAxis * minorAxis **2) **(1/3)) / (majorAxis + (minorAxis**2 / (majorAxis**2 - minorAxis**2)**(1/2)) * log((majorAxis + (majorAxis**2 - minorAxis**2)**(1/2)) / minorAxis)) #### ! 1/2
 
     return label, centroid, area, boundingBox
-
+'''
