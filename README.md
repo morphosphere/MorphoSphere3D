@@ -1,4 +1,4 @@
-![MorphoSphere project](logo.png)
+![MorphoSphere project](http://morphosphere.github.io/img/Logo_A_txt_aside.png)
 [![Build Status](https://travis-ci.org/morphosphere/MorphoSphere3D.svg?branch=master)](https://travis-ci.org/morphosphere/MorphoSphere3D)
 
 # MorphoSphere3D
