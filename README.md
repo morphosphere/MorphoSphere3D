@@ -12,21 +12,31 @@ Also available for single planes as MorphoSphere2D
 ## Experimental Details
 
 Experiment: 20160126-#1-12-4_SpheroidInfection_Complete
+
 Plate: Corning 384well ultra-low attachment u-bottom plates
+
 Media: RPMI
+
 Cell line: HT-29
-Passage: P3+8                          
+
+Passage: P3+8
+
 Viability: 0.89
+
 Seeded: 440 cells/well, 8’800 cells/ml, 50 µl/ well
+
 Condition: non-infected
+
 
 ## Imaging Details
 
 Microscope: Molecular Devices ImageXpress Micro XL (IXM-XL)
+
 Imaging: live cell imaging in media 95 h post seeding, TL20, 100 ms
+
                          
 ## Image Meta Data
-
+```xml
 ﻿<OME xmlns="http://www.openmicroscopy.org/Schemas/OME/2016-06" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.openmicroscopy.org/Schemas/OME/2016-06 http://www.openmicroscopy.org/Schemas/OME/2016-06/ome.xsd">
 <Instrument ID="Instrument:0">
 <Detector ID="Detector:0:0" Type="Other"/>
@@ -41,3 +51,4 @@ Imaging: live cell imaging in media 95 h post seeding, TL20, 100 ms
 <LightPath/>
 <MetadataOnly/>
 <Plane DeltaT="0.0" DeltaTUnit="s" ExposureTime="0.1" ExposureTimeUnit="s" PositionX="6858.56" PositionXUnit="reference frame" PositionY="7112.76" PositionYUnit="reference frame" TheC="0" TheT="0" TheZ="0"/>
+```
